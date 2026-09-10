@@ -15,6 +15,11 @@ concurrency:
   group: live-demo
   cancel-in-progress: true
 
+# Least-privilege default: this workflow only reads the repo and talks to
+# services it starts itself -- it never calls the GitHub API.
+permissions:
+  contents: read
+
 jobs:
   demo:
     runs-on: ubuntu-latest
@@ -129,6 +134,12 @@ jobs:
           sudo dpkg -i cloudflared.deb
 
       - name: Start Cloudflare tunnel and print link
+        env:
+          # Passed through env rather than interpolated directly into the
+          # script (never trust a workflow_dispatch input enough to splice
+          # it straight into shell source -- see
+          # https://securitylab.github.com/research/github-actions-untrusted-input/).
+          DURATION_MINUTES_INPUT: ${{ inputs.duration_minutes }}
         run: |
           nohup cloudflared tunnel --no-autoupdate --url http://127.0.0.1:3000 > /tmp/cloudflared.log 2>&1 &
           URL=""
@@ -147,11 +158,13 @@ jobs:
             echo ""
             echo "$URL"
             echo ""
-            echo "You're auto-signed in as the admin. Stays up for as long as this job runs (this run's cap: \`${{ inputs.duration_minutes }}\` minutes, hard max 300)."
+            echo "You're auto-signed in as the admin. Stays up for as long as this job runs (this run's cap: \`$DURATION_MINUTES_INPUT\` minutes, hard max 300)."
           } >> "$GITHUB_STEP_SUMMARY"
           echo "LIVE LINK: $URL"
 
       - name: Keep alive (cancel this run any time to end the preview)
+        env:
+          DURATION_MINUTES_INPUT: ${{ inputs.duration_minutes }}
         run: |
           cleanup() {
             echo "Ending preview: stopping the tunnel and server..."
@@ -160,8 +173,10 @@ jobs:
           }
           trap cleanup EXIT INT TERM
 
-          MINUTES="${{ inputs.duration_minutes }}"
-          MINUTES="${MINUTES:-60}"
+          MINUTES="$DURATION_MINUTES_INPUT"
+          case "$MINUTES" in
+            ''|*[!0-9]*) MINUTES=60 ;;
+          esac
           if [ "$MINUTES" -gt 300 ]; then MINUTES=300; fi
           echo "Live link stays up for $MINUTES minute(s), or until you cancel this run from the Actions tab (top right of this run's page -> Cancel workflow)."
 

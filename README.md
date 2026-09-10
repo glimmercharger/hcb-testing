@@ -225,3 +225,38 @@ want an always-on, stable URL instead, the real move is deploying HCB
 (with its own Docker/Heroku tooling) to a host like Render/Fly/Railway with
 its own persistent Postgres+Redis — a bigger, separate task that needs your
 own account/credentials there.
+
+## Security review notes
+
+This got a deliberate pass before being made public. What was checked:
+
+- **No secrets anywhere.** Scanned every file and this repo's entire git
+  history (all commits, all branches) for real API keys, tokens, and the
+  handful of real internal Airtable base/table IDs HCB itself links to —
+  none of that was ever committed here. The encryption-key-shaped values
+  in `env.development.example` / `live-demo.yml` (`LOCKBOX`,
+  `ACTIVE_RECORD__ENCRYPTION__*`) aren't secrets either — they're the same
+  public dummy dev values from HCB's own `.env.development.example`.
+- **Rails' interactive debug console can't be reached remotely.** HCB runs
+  with `web-console` and `consider_all_requests_local = true` in
+  development, which normally means anyone hitting an error page gets a
+  full backtrace *and an interactive Ruby REPL*. Verified directly (spoofed
+  `X-Forwarded-For` against a live instance, checked for the console's
+  markup in the response) that Rails' own remote-IP resolution correctly
+  treats tunnel visitors as non-local and `web-console` refuses to render
+  the console for them — confirmed present for a real localhost request,
+  confirmed absent for a simulated external one.
+- **GitHub Actions hardening.** The workflow now declares least-privilege
+  `permissions: contents: read` (it never touches the GitHub API), and the
+  `duration_minutes` input is passed through `env:` instead of being
+  spliced directly into shell scripts — the latter is a well-known GitHub
+  Actions injection pattern
+  ([more here](https://securitylab.github.com/research/github-actions-untrusted-input/)),
+  fixed even though only repo collaborators can trigger this workflow
+  anyway.
+- **What's *intentionally* wide open:** the login bypass and phone
+  verification skip (see above) mean anyone who gets a live link has full
+  admin access with zero authentication, for as long as that run is up.
+  That's the deliberate tradeoff of this whole setup, not an oversight —
+  just make sure you're comfortable with who might see the link while a
+  run is live.
