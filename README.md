@@ -91,12 +91,20 @@ poking at the HCB UI/admin panel, not a real bank.
    links from the *current request's* host/protocol instead, so they
    always match wherever you actually browsed in from.
 
-9. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
+9. Copy `patches/config/initializers/dev_fake_stripe_dashboard_links.rb`
+   into HCB's `config/initializers/`. The admin panel has "View card/
+   cardholder/personalization design on Stripe" buttons that link straight
+   to `dashboard.stripe.com` using the object's Stripe ID -- since those
+   IDs are fake (see `dev_fakes.rb`), that button would send you to a real
+   Stripe dashboard page for an object that doesn't exist there. This
+   neutralizes the link (`#`) whenever the ID is one of ours.
+
+10. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
    `db/seeds.rb` already creates a dev admin user
    (`admin@bank.engineering`, made an admin via `make_admin!`) and a pile
    of demo orgs.
 
-10. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
+11. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
    and run:
    ```bash
    bin/rails runner bin/seed_rich_org.rb
@@ -109,14 +117,14 @@ poking at the HCB UI/admin panel, not a real bank.
    so the full $25M shows up as available balance instead of being reduced
    by the standard 7% platform fee.
 
-11. Build JS/CSS assets once (only needed the first time / after JS
+12. Build JS/CSS assets once (only needed the first time / after JS
     changes):
     ```bash
     yarn --ignore-engines run build
     yarn --ignore-engines run build:css
     ```
 
-12. Run the app:
+13. Run the app:
     ```bash
     bin/rails server -b 0.0.0.0 -p 3000
     ```
