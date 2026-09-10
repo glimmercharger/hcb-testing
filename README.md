@@ -20,6 +20,11 @@ notes for running a **fully local** copy of HCB, with:
 - **No phone verification required** to issue a card — there's no Twilio
   account locally to send/verify a real SMS code against, so that gate is
   bypassed too, dev-only.
+- **Links work wherever you're actually browsing from** — absolute links
+  (e.g. a draft application's "view" link) are built from the current
+  request's host instead of a hardcoded `localhost:3000`, so they still
+  work when reached through the live-demo tunnel instead of a plain local
+  server.
 
 Nothing here talks to the internet for money movement — it's a sandbox for
 poking at the HCB UI/admin panel, not a real bank.
@@ -76,12 +81,22 @@ poking at the HCB UI/admin panel, not a real bank.
    There's no login page to click through — visiting the app just drops you
    in, already signed in as admin. Dev-only, same as the other patches.
 
-8. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
+8. Copy `patches/config/initializers/dev_dynamic_host.rb` into HCB's
+   `config/initializers/`. HCB normally pins the host used to build
+   absolute links (`_url` helpers, e.g. a fiscal sponsorship application's
+   "view" link) to whatever `TEST_URL_HOST` is set to. If you're reaching
+   the app through something other than plain `localhost:3000` (a tunnel,
+   a forwarded port), those links would otherwise point at literal
+   `localhost:3000` and fail to open. This makes controllers build those
+   links from the *current request's* host/protocol instead, so they
+   always match wherever you actually browsed in from.
+
+9. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
    `db/seeds.rb` already creates a dev admin user
    (`admin@bank.engineering`, made an admin via `make_admin!`) and a pile
    of demo orgs.
 
-9. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
+10. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
    and run:
    ```bash
    bin/rails runner bin/seed_rich_org.rb
@@ -94,14 +109,14 @@ poking at the HCB UI/admin panel, not a real bank.
    so the full $25M shows up as available balance instead of being reduced
    by the standard 7% platform fee.
 
-10. Build JS/CSS assets once (only needed the first time / after JS
+11. Build JS/CSS assets once (only needed the first time / after JS
     changes):
     ```bash
     yarn --ignore-engines run build
     yarn --ignore-engines run build:css
     ```
 
-11. Run the app:
+12. Run the app:
     ```bash
     bin/rails server -b 0.0.0.0 -p 3000
     ```

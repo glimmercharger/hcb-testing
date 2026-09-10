@@ -87,6 +87,7 @@ jobs:
         run: |
           cp hcb-testing/patches/config/initializers/dev_fakes.rb hcb/config/initializers/dev_fakes.rb
           cp hcb-testing/patches/config/initializers/dev_auto_login.rb hcb/config/initializers/dev_auto_login.rb
+          cp hcb-testing/patches/config/initializers/dev_dynamic_host.rb hcb/config/initializers/dev_dynamic_host.rb
           cp hcb-testing/patches/bin/seed_rich_org.rb hcb/bin/seed_rich_org.rb
           sed -i 's/Rails\.env\.test?$/(Rails.env.test? || Rails.env.development?)/' hcb/config/initializers/stripe.rb
 
