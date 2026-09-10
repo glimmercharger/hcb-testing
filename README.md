@@ -15,6 +15,8 @@ notes for running a **fully local** copy of HCB, with:
   balance.
 - The existing built-in HCB admin panel, using the existing dev seed admin
   account.
+- **No login screen at all** — every request auto-authenticates as the
+  admin account, dev-only.
 
 Nothing here talks to the internet for money movement — it's a sandbox for
 poking at the HCB UI/admin panel, not a real bank.
@@ -64,12 +66,19 @@ poking at the HCB UI/admin panel, not a real bank.
    if api_key.blank? && (Rails.env.test? || Rails.env.development?)
    ```
 
-7. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
+7. Copy `patches/config/initializers/dev_auto_login.rb` into HCB's
+   `config/initializers/`. This removes the login gate entirely: instead of
+   HCB's normal magic-link/email-code flow, every request is
+   auto-authenticated as the seeded dev admin (`admin@bank.engineering`).
+   There's no login page to click through — visiting the app just drops you
+   in, already signed in as admin. Dev-only, same as the other patches.
+
+8. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
    `db/seeds.rb` already creates a dev admin user
    (`admin@bank.engineering`, made an admin via `make_admin!`) and a pile
    of demo orgs.
 
-8. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
+9. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
    and run:
    ```bash
    bin/rails runner bin/seed_rich_org.rb
@@ -82,24 +91,22 @@ poking at the HCB UI/admin panel, not a real bank.
    so the full $25M shows up as available balance instead of being reduced
    by the standard 7% platform fee.
 
-9. Build JS/CSS assets once (only needed the first time / after JS
-   changes):
-   ```bash
-   yarn --ignore-engines run build
-   yarn --ignore-engines run build:css
-   ```
+10. Build JS/CSS assets once (only needed the first time / after JS
+    changes):
+    ```bash
+    yarn --ignore-engines run build
+    yarn --ignore-engines run build:css
+    ```
 
-10. Run the app:
+11. Run the app:
     ```bash
     bin/rails server -b 0.0.0.0 -p 3000
     ```
 
 ## Using it
 
-- Go to `http://localhost:3000/users/auth` and log in as
-  `admin@bank.engineering`. There's no real email — HCB uses
-  [letter_opener](https://github.com/ryanb/letter_opener) in development, so
-  grab the login code from `http://localhost:3000/letter_opener`.
+- Just go to `http://localhost:3000` — no login, you're dropped straight in
+  as the admin (`admin@bank.engineering`).
 - The admin panel is at `http://localhost:3000/admin`.
 - The $25M org is at `http://localhost:3000/megafund`.
 - From the org, Cards → Order a card → Issue my card gives you a working
