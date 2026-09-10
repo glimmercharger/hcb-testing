@@ -134,12 +134,21 @@ poking at the HCB UI/admin panel, not a real bank.
     This keeps those tiles/entries visible but sends them nowhere (`#`)
     instead of out to a real internal tool.
 
-11. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
+11. Copy `patches/app/views/application/_footer.html.erb` over HCB's own
+    `app/views/application/_footer.html.erb`. The stock footer (on every
+    logged-in page) reads "Contact the HCB team at hcb@hackclub.com or
+    call...", states the real Stripe/Celtic Bank card-issuing disclosure,
+    and has a hover-reveal row of build/security/API links -- all implying
+    this is the real, Hack-Club-run HCB. This blanks it out entirely
+    instead of leaving something that could be mistaken for the real
+    thing.
+
+12. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
    `db/seeds.rb` already creates a dev admin user
    (`admin@bank.engineering`, made an admin via `make_admin!`) and a pile
    of demo orgs.
 
-12. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
+13. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
    and run:
    ```bash
    bin/rails runner bin/seed_rich_org.rb
@@ -152,14 +161,14 @@ poking at the HCB UI/admin panel, not a real bank.
    so the full $25M shows up as available balance instead of being reduced
    by the standard 7% platform fee.
 
-13. Build JS/CSS assets once (only needed the first time / after JS
+14. Build JS/CSS assets once (only needed the first time / after JS
     changes):
     ```bash
     yarn --ignore-engines run build
     yarn --ignore-engines run build:css
     ```
 
-14. Run the app:
+15. Run the app:
     ```bash
     bin/rails server -b 0.0.0.0 -p 3000
     ```
