@@ -183,3 +183,26 @@ want an always-on, stable URL instead, the real move is deploying HCB
 (with its own Docker/Heroku tooling) to a host like Render/Fly/Railway with
 its own persistent Postgres+Redis — a bigger, separate task that needs your
 own account/credentials there.
+
+## None of this is connected to the real HCB
+
+This is a **completely separate, disposable copy** of the app — its own
+fresh database, seeded from scratch, that has never talked to Hack Club's
+actual servers, Stripe account, or bank accounts. Nothing you do here
+reaches the real hcb.hackclub.com or any real person's money, in either
+direction:
+
+- **Ordering a physical card here does not mail you a real card.** It's a
+  fake Stripe Issuing response (see `dev_fakes.rb`) — there's no real
+  Stripe Issuing account behind it, so nothing is manufactured or shipped.
+- **The $25,000,000.00 balance is fake money in a fake local database.**
+  It was never deposited anywhere real, and spending it here doesn't move
+  or affect any real funds.
+- Every "org," transaction, admin action, and card in this instance only
+  exists in whichever throwaway Postgres database you (or the GitHub
+  Actions runner) just created. Tear it down (or let the CI run end) and
+  it's gone.
+- The real HCB is production infrastructure that Hack Club uses for actual
+  fiscal sponsorship of real organizations. If you ever want to test
+  something against that, that's a completely different conversation
+  involving real credentials and real people's money — not this repo.
