@@ -122,12 +122,24 @@ poking at the HCB UI/admin panel, not a real bank.
    Stripe dashboard page for an object that doesn't exist there. This
    neutralizes the link (`#`) whenever the ID is one of ours.
 
-10. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
+10. Copy `patches/config/initializers/dev_fake_airtable_links.rb` into
+    HCB's `config/initializers/`, and apply this one-line patch to blank
+    out the admin command bar's hardcoded links too:
+    ```bash
+    sed -i -E 's|=> "https://airtable\.com/[^"]*"|=> "#"|' app/views/application/_command_bar.html.erb
+    ```
+    HCB's admin panel links out to several real, internal Hack Club
+    Airtable bases (the application review queue, stickers, disputes,
+    feedback, etc.) as dashboard task tiles and Cmd+K quick-jump entries.
+    This keeps those tiles/entries visible but sends them nowhere (`#`)
+    instead of out to a real internal tool.
+
+11. `bin/rails db:prepare` — creates + migrates + seeds the DB. HCB's own
    `db/seeds.rb` already creates a dev admin user
    (`admin@bank.engineering`, made an admin via `make_admin!`) and a pile
    of demo orgs.
 
-11. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
+12. Seed the $25M org: copy `patches/bin/seed_rich_org.rb` into HCB's `bin/`
    and run:
    ```bash
    bin/rails runner bin/seed_rich_org.rb
@@ -140,14 +152,14 @@ poking at the HCB UI/admin panel, not a real bank.
    so the full $25M shows up as available balance instead of being reduced
    by the standard 7% platform fee.
 
-12. Build JS/CSS assets once (only needed the first time / after JS
+13. Build JS/CSS assets once (only needed the first time / after JS
     changes):
     ```bash
     yarn --ignore-engines run build
     yarn --ignore-engines run build:css
     ```
 
-13. Run the app:
+14. Run the app:
     ```bash
     bin/rails server -b 0.0.0.0 -p 3000
     ```
