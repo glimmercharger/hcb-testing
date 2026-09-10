@@ -1,0 +1,149 @@
+name: Live demo
+
+# Manually triggered ("Run workflow" button in the Actions tab) -- no push
+# needed to get a fresh link. Starting a new run auto-cancels any run
+# already in progress, so re-running this is how you get a new link.
+on:
+  workflow_dispatch:
+    inputs:
+      duration_minutes:
+        description: "How long to keep the live link up (minutes, capped at 300)"
+        required: false
+        default: "60"
+
+concurrency:
+  group: live-demo
+  cancel-in-progress: true
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 320
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      RAILS_ENV: development
+      DATABASE_URL: postgres://postgres@127.0.0.1:5432
+      BLAZER_DATABASE_URL: postgres://postgres@127.0.0.1:5432/bank_development
+      REDIS_URL: redis://127.0.0.1:6379
+      ACTIVE_RECORD__ENCRYPTION__DETERMINISTIC_KEY: sdlkflsdf
+      ACTIVE_RECORD__ENCRYPTION__KEY_DERIVATION_SALT: sX3dflkh2398
+      ACTIVE_RECORD__ENCRYPTION__PRIMARY_KEY: 2ljdfDxlsd
+      LOCKBOX: A3F1C7D829B65E4FA2D8C9E31F7B04E5D1A6B3C8829F54E7C0D3A5916E2F48BC
+      HASHID_SALT: ci-demo-salt
+      LIVE_URL_HOST: localhost:3000
+      TEST_URL_HOST: localhost:3000
+      PORT: "3000"
+    steps:
+      - name: Checkout hcb-testing (patches)
+        uses: actions/checkout@v4
+        with:
+          path: hcb-testing
+
+      - name: Checkout hackclub/hcb
+        uses: actions/checkout@v4
+        with:
+          repository: hackclub/hcb
+          path: hcb
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y libpq-dev
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          working-directory: hcb
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: hcb/.node-version
+
+      - name: Apply local-demo patches
+        run: |
+          cp hcb-testing/patches/config/initializers/dev_fakes.rb hcb/config/initializers/dev_fakes.rb
+          cp hcb-testing/patches/config/initializers/dev_auto_login.rb hcb/config/initializers/dev_auto_login.rb
+          cp hcb-testing/patches/bin/seed_rich_org.rb hcb/bin/seed_rich_org.rb
+          sed -i 's/Rails\.env\.test?$/(Rails.env.test? || Rails.env.development?)/' hcb/config/initializers/stripe.rb
+
+      - name: Install JS deps
+        working-directory: hcb
+        run: yarn install --ignore-engines
+
+      - name: Prepare database
+        working-directory: hcb
+        run: bin/rails db:prepare
+
+      - name: Seed $25M demo org
+        working-directory: hcb
+        run: bin/rails runner bin/seed_rich_org.rb
+
+      - name: Build assets
+        working-directory: hcb
+        run: |
+          yarn --ignore-engines run build
+          yarn --ignore-engines run build:css
+
+      - name: Start Rails server
+        working-directory: hcb
+        run: |
+          nohup bin/rails server -b 0.0.0.0 -p 3000 > /tmp/rails.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null http://127.0.0.1:3000/ && break
+            sleep 2
+          done
+
+      - name: Install cloudflared
+        run: |
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
+          sudo dpkg -i cloudflared.deb
+
+      - name: Start Cloudflare tunnel and print link
+        run: |
+          nohup cloudflared tunnel --no-autoupdate --url http://127.0.0.1:3000 > /tmp/cloudflared.log 2>&1 &
+          URL=""
+          for i in $(seq 1 30); do
+            URL=$(grep -o 'https://[a-zA-Z0-9-]*\.trycloudflare\.com' /tmp/cloudflared.log | head -1 || true)
+            [ -n "$URL" ] && break
+            sleep 2
+          done
+          if [ -z "$URL" ]; then
+            echo "Failed to get a tunnel URL, cloudflared log:"
+            cat /tmp/cloudflared.log
+            exit 1
+          fi
+          {
+            echo "## Live link"
+            echo ""
+            echo "$URL"
+            echo ""
+            echo "You're auto-signed in as the admin. Stays up for as long as this job runs (this run's cap: \`${{ inputs.duration_minutes }}\` minutes, hard max 300)."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "LIVE LINK: $URL"
+
+      - name: Keep alive
+        run: |
+          MINUTES="${{ inputs.duration_minutes }}"
+          MINUTES="${MINUTES:-60}"
+          if [ "$MINUTES" -gt 300 ]; then MINUTES=300; fi
+          sleep "$((MINUTES * 60))"

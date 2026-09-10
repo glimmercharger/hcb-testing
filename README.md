@@ -113,12 +113,41 @@ poking at the HCB UI/admin panel, not a real bank.
   fake virtual Visa card (4242 last4, active, full balance as its spending
   limit) instantly, no Stripe account needed.
 
-## Why not a public/hosted link
+## Getting a live link (no local install needed)
 
-This was built out in an ephemeral sandbox container with no inbound
-internet access, and GitHub Pages (or any static host) can't run a
-Postgres/Redis-backed Rails app anyway — so this is set up for **local
-only** use, per how this was scoped. If you want an actual publicly
-reachable demo, the real move is deploying HCB (with its Docker/Heroku
-tooling) to a host like Render/Fly/Railway with its own Postgres+Redis,
-which is a bigger, separate task.
+`.github/workflows/live-demo.yml` runs this whole setup inside a GitHub
+Actions runner (which, unlike a typical sandboxed agent container, has
+normal internet access) and opens a [Cloudflare
+Tunnel](https://github.com/cloudflare/cloudflared) quick tunnel to it. That
+gets you a real, working `https://*.trycloudflare.com` URL with nothing
+installed on your own machine.
+
+**To get a link:**
+1. Go to the **Actions** tab → **Live demo** workflow → **Run workflow**.
+2. Wait a few minutes for it to build, seed, and boot.
+3. Open the run, and check the **Summary** page (or the last step's log) —
+   the link is printed there as soon as the tunnel comes up.
+
+**To get a *new* link:** just run the workflow again — no push needed.
+Starting a new run automatically cancels whichever run is currently live
+(same `concurrency` group), so re-running is literally how you rotate the
+link.
+
+Things worth knowing:
+- **It's temporary.** The link dies the moment the job ends — either
+  because you hit the `duration_minutes` input (default 60, capped at 300)
+  or GitHub's hard 6-hour job limit.
+- **The URL is random and unauthenticated Cloudflare-side** — anyone with
+  the link gets in as admin (login is removed, see above), so don't leave
+  a long-duration run going unattended if you're worried about who might
+  stumble on the URL.
+- Runs use this repo's GitHub Actions minutes — free/unmetered for public
+  repos.
+
+## Why not a permanent hosted link
+
+A GitHub Actions run is inherently temporary — it's not a real host. If you
+want an always-on, stable URL instead, the real move is deploying HCB
+(with its own Docker/Heroku tooling) to a host like Render/Fly/Railway with
+its own persistent Postgres+Redis — a bigger, separate task that needs your
+own account/credentials there.
