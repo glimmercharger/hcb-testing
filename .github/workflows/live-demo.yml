@@ -145,9 +145,19 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "LIVE LINK: $URL"
 
-      - name: Keep alive
+      - name: Keep alive (cancel this run any time to end the preview)
         run: |
+          cleanup() {
+            echo "Ending preview: stopping the tunnel and server..."
+            pkill -f 'cloudflared tunnel' 2>/dev/null || true
+            pkill -f 'bin/rails server' 2>/dev/null || true
+          }
+          trap cleanup EXIT INT TERM
+
           MINUTES="${{ inputs.duration_minutes }}"
           MINUTES="${MINUTES:-60}"
           if [ "$MINUTES" -gt 300 ]; then MINUTES=300; fi
-          sleep "$((MINUTES * 60))"
+          echo "Live link stays up for $MINUTES minute(s), or until you cancel this run from the Actions tab (top right of this run's page -> Cancel workflow)."
+
+          sleep "$((MINUTES * 60))" &
+          wait $!

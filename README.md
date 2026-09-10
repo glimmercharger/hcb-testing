@@ -17,6 +17,9 @@ notes for running a **fully local** copy of HCB, with:
   account.
 - **No login screen at all** — every request auto-authenticates as the
   admin account, dev-only.
+- **No phone verification required** to issue a card — there's no Twilio
+  account locally to send/verify a real SMS code against, so that gate is
+  bypassed too, dev-only.
 
 Nothing here talks to the internet for money movement — it's a sandbox for
 poking at the HCB UI/admin panel, not a real bank.
@@ -132,6 +135,12 @@ installed on your own machine.
 Starting a new run automatically cancels whichever run is currently live
 (same `concurrency` group), so re-running is literally how you rotate the
 link.
+
+**To end the preview whenever you want:** open the running workflow run
+and click **Cancel workflow** (top right of the run's page). The last step
+traps the cancellation and explicitly kills the tunnel and Rails server
+before the run ends, so the link stops working immediately — you don't
+have to wait for `duration_minutes` to run out.
 
 Things worth knowing:
 - **It's temporary.** The link dies the moment the job ends — either
